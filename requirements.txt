@@ -1,1 +1,2 @@
-test
+beautifulsoup4~=4.11.1
+requests~=2.27.1
