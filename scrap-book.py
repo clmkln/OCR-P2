@@ -7,7 +7,8 @@ from pathlib import Path
 from urllib.parse import urljoin
 import requests, csv, re, os
 
-SINGLE_BOOK_URL="http://books.toscrape.com/catalogue/sapiens-a-brief-history-of-humankind_996/index.html"
+SINGLE_BOOK_URL="http://books.toscrape.com/catalogue/sapiens-a-brief-history-of-humankind_996/index.html" # Single book URL
+OUTFILES="outfiles" # Path for outfiles
 SHORTURI=urljoin(SINGLE_BOOK_URL, '/')
 
 @dataclass
@@ -33,7 +34,7 @@ def mkdir(folder):
 def touch(filename): # Single book
     filename = re.sub('[^A-Za-z0-9]+', '', filename)
     book_properties = book_info.__dict__.keys()
-    with open(filename+'.csv', 'w') as file_csv:
+    with open(OUTFILES+"/"+filename+'.csv', 'w') as file_csv:
         writer = csv.writer(file_csv, delimiter=',')
         writer.writerow(book_properties)
         all = []
@@ -74,10 +75,10 @@ def get_book(url):
     return book_info
 
 def main():
+    mkdir(OUTFILES)
     global book_info
     book_info = get_book(SINGLE_BOOK_URL)
     print(book_info.category)
-
     touch("output")
 
 main()
