@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 
-from curses import keyname
 from dataclasses import dataclass
-from pickle import SHORT_BINUNICODE
-from unicodedata import category
 from bs4 import BeautifulSoup
 from pathlib import Path
 from urllib.parse import urljoin
-import requests, csv, re, os
+import requests, csv, re
 
 MAIN_URL="http://books.toscrape.com/"
 CATEGORY="History"
