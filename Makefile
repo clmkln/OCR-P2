@@ -1,3 +1,8 @@
+all: clean update
+
+clean: 
+	@rm -drf outfiles/*
+	
 update:
 	@echo "Updating virtual environment"
 	python3 -m pip install virtualenv
