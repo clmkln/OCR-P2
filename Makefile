@@ -1,7 +1,7 @@
 all: clean update
 
 clean: 
-	@rm -drf outfiles/*
+	@rm -drf outfiles
 	
 update:
 	@echo "Updating virtual environment"
