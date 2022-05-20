@@ -4,14 +4,13 @@ from dataclasses import dataclass
 from bs4 import BeautifulSoup
 from pathlib import Path
 from urllib.parse import urljoin
-import requests, csv, re
+import requests, csv, re, time, os
 
 MAIN_URL="http://books.toscrape.com/"
-CATEGORY="History"
-SINGLE_BOOK_URL="http://books.toscrape.com/catalogue/sapiens-a-brief-history-of-humankind_996/index.html" # Single book URL
 OUTFILES="outfiles" # Path for outfiles
-OUTPUT="output"
-SHORTURI=urljoin(SINGLE_BOOK_URL, '/')
+CRED = '\033[91m'
+CGREEN = '\33[32m'
+CEND = '\033[0m'
 
 @dataclass
 class book:
@@ -36,9 +35,11 @@ def mkdir(folder):
 def touch(filename): # Create outfile
     filename = re.sub('[^A-Za-z0-9]+', '', filename)
     book_properties = book().__dict__.keys()
-    with open(OUTFILES+"/"+filename+'.csv', 'w') as file_csv:
-        writer = csv.writer(file_csv, delimiter=',')
-        writer.writerow(book_properties)
+    name = OUTFILES+"/"+filename+'.csv'
+    if not os.path.exists(name):
+        with open(name, 'a+') as file_csv:
+            writer = csv.writer(file_csv, delimiter=',')
+            writer.writerow(book_properties)
 
 def append_book(filename): # Feed outfile
     filename = re.sub('[^A-Za-z0-9]+', '', filename)
@@ -52,6 +53,8 @@ def append_book(filename): # Feed outfile
 def get_categories():
     print("Requesting category...")
     request_category = requests.get(MAIN_URL)
+    if request_category.status_code != 200:
+        print(CRED+"Invalid URL."+CEND)
     soup = BeautifulSoup(request_category.content, 'html.parser')
     # Get first <ul>
     get_first_ul = soup.find('ul', {"class": "nav-list"})
@@ -62,7 +65,6 @@ def get_categories():
 
     for li in list_books_category:
         
-        #category_name_in_link = li.find('a')['href'].split('/')[3] # Get only category link name
         category_link = MAIN_URL+li.find('a')['href']
         category_link_list.append(category_link)
     
@@ -71,6 +73,8 @@ def get_categories():
 def get_book_list(category_link):
     book_url_list = []
     answer = requests.get(category_link)
+    if answer.status_code != 200:
+        print(CRED+"Invalid URL."+CEND)
     page = answer.content
     soup = BeautifulSoup(page, "html.parser")
     cat_name = category_link.split('/')[6]
@@ -86,7 +90,6 @@ def get_book_list(category_link):
                 link_to_book = a['href'].split('/')[3]
                 url_book = MAIN_URL + 'catalogue/' + link_to_book
                 book_url_list.append(url_book)
-
     else:
         paginate = str(paginate)
         paginate = paginate.split()[5]
@@ -108,6 +111,8 @@ def get_book_list(category_link):
 def get_book(url):
     book_info = book()
     answer = requests.get(url)
+    if answer.status_code != 200:
+        print(CRED+"Invalid URL."+CEND)
     page = answer.content
     soup = BeautifulSoup(page, "html.parser")
 
@@ -137,6 +142,7 @@ def get_book(url):
         book_info.product_description = tmp_desc
     book_info.image_url = urljoin(MAIN_URL, soup.find_all('div', {'class': 'carousel'})[0].find('img')['src'])
     book_info.category = soup.select("body > div > div > ul > li > a")[2].text
+    book_info.review_rating = soup.find('p', class_='star-rating').get('class')[1]
     # Save image
     book_info.product_page_url = url
     img_data = requests.get(book_info.image_url).content
@@ -145,19 +151,55 @@ def get_book(url):
     with open(OUTFILES+"/"+"medias"+"/"+img_file+'.jpg', 'wb') as handler:
         handler.write(img_data)
 
-    print("Book" + ' "'+book_info.title+'" ' + "imported.")
+    print(CGREEN + "Book" + ' "'+book_info.title+'" ' + "imported." + CEND)
 
     return book_info
 
 def main():
-    mkdir(OUTFILES)
     global book_info
 
-    for url in get_categories():
-        filename = url.split('/')[6]
-        touch(filename)
-        for book in get_book_list(url):
-            book_info = get_book(book)
-            append_book(filename)
+    # USER CHOICES
+    while True:
+        ans = input ("\nWhat kind of request ?\n\n A) Book.\n B) Category.\n C) Everything.\n Q) QUIT\n\n => ")
+        # BOOK
+        if ans == "A":
+            print ("\nRequesting single book.")
+            ansA = input ("\nPlease past the book URL : ")
+            if not ansA.startswith("https://books.toscrape.com/catalogue/"):
+                print(CRED+"Not a category URL."+CEND)      
+            book_info = get_book(ansA)
+            touch(book_info.category)
+            append_book(book_info.category)
+        # CATEGROY 
+        elif ans == "B":
+            print ("\nRequesting all book from single category.")
+            ansB = input ("\nPlease past the category URL : ")
+            if not ansB.startswith("https://books.toscrape.com/catalogue/category/books/"):
+                print(CRED+"Not a category URL."+CEND)      
+            for book in get_book_list(ansB):
+                book_info = get_book(book)
+                touch(book_info.category)
+                append_book(book_info.category)
+            print("Extraction done for " + book_info.category + " category.")            
+        # ALL
+        elif ans == "C":
+            print ("\nRequesting all books from all categories.")        
+            for url in get_categories():
+                #filename = url.split('/')[6]
+                for book in get_book_list(url):
+                    book_info = get_book(book)
+                    touch(book_info.category)
+                    append_book(book_info.category)
+                print("Extraction done for " + book_info.category + " category.")
+            print("\nExtraction for all books done.")
+        # LEAVE
+        elif ans == "Q":
+            break
+        # PROTECTION
+        elif ans not in ["A", "B", "C", "Q"]:
+            print(CRED + "Unrecognized choice." + CEND)
+            time.sleep(1)
+            continue
+    print("\nEXIT.")
 
 main()
